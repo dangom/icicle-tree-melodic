@@ -39,6 +39,17 @@ def get_fix_file(melodic_dir=None):
     return fixfile[0]
 
 
+def beautify_plot(ax):
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    ax.set_xticks([])
+    ax.set_xticklabels([])
+    ax.set_yticks([])
+    ax.set_yticklabels([])
+
+    return
+
 def icicle_plot(melodic_dir, outfile, *, fixfile=None):
     """
     Generate an icicle plot showing excluded and accepted components, and their
@@ -50,13 +61,7 @@ def icicle_plot(melodic_dir, outfile, *, fixfile=None):
 
 
     fig, ax = plt.subplots()
-    for spine in ax.spines.values():
-        spine.set_visible(False)
-
-    ax.set_xticks([])
-    ax.set_xticklabels([])
-    ax.set_yticks([])
-    ax.set_yticklabels([])
+    beautify_plot(ax)
 
     # ax.add_patch(patches.Rectangle((0,0), explained, 1, facecolor="blue"))
     # ax.add_patch(patches.Rectangle((explained,0), 1- explained, 1, facecolor="red"))
@@ -77,7 +82,7 @@ def icicle_plot(melodic_dir, outfile, *, fixfile=None):
                                        facecolor="C1", edgecolor="white", linewidth=0.2))
 
     if not fixfile:
-        plt.suptitle("Estimated " + n_components + ". Retained " + 100*var "% of variance.")
+        #plt.suptitle("Estimated " + n_components + ". Retained " + 100*var "% of variance.")
         plt.savefig(outfile)
         return
 
@@ -94,7 +99,7 @@ def icicle_plot(melodic_dir, outfile, *, fixfile=None):
     for component in range(1, n_components):
         color = test_fix[component]
         size = float(data.loc[component] -data.loc[component-1])
-        if color = "C0":
+        if color == "C0":
             variance += size
         ax.add_patch(patches.Rectangle((float(data.loc[component-1]), 0),
                                        size,
