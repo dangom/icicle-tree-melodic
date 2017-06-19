@@ -1,4 +1,4 @@
-# Time-stamp: <2017-06-19 16:20:24 dangom>
+# Time-stamp: <2017-06-20 00:02:03 danielpgomez>
 """
 Generate an icicle tree plot from a melodic directory.
 The plot will explain how much variance was removed from cleaning the data,
@@ -9,12 +9,12 @@ import ast
 import glob
 import os
 
-from matplotlib.patches import Rectangle
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.patches import Rectangle
 
 
-def retrieve_data(melodic_dir):
+def retrieve_data_deprecated(melodic_dir):
     """Returns the cumulative sum of eigenvalues,
     as found in the 'eigenvalues_percent' file within the Melodic folder.
 
@@ -30,6 +30,14 @@ def retrieve_data(melodic_dir):
     return data.T
 
 
+def retrieve_data(melodic_dir):
+    data = pd.read_csv(os.path.join(melodic_dir,
+                                    "filtered_func_data.ica",
+                                    "melodic_ICstats"),
+                       delimiter="  ", header=None, engine="python")
+    return data
+
+
 def get_ica_dimension(melodic_dir):
 
     return sum(1 for line in open(os.path.join(melodic_dir,
@@ -37,8 +45,8 @@ def get_ica_dimension(melodic_dir):
                                                "melodic_ICstats")))
 
 
-def get_variance_explained(data, n_components):
-    return float(data.loc[n_components])
+def get_variance_explained(data):
+    return sum(data[1])
 
 
 def get_fix_file(melodic_dir=None):
@@ -78,11 +86,11 @@ def get_rejected_components_from_fix(fixfile):
     return rejected_components
 
 
-def get_variance_retained_after_fix(data, ica_dimension, rejected_components):
-    var_per_component = data[0][1:].values - data[0][:-1].values
-    # Because we've skipped the first entry.
-    var_per_component = [float(data.loc[0])] + var_per_component.tolist()
-    total_var = [x for i, x in enumerate(var_per_component[:ica_dimension])
+def get_variance_retained_after_fix(data, rejected_components):
+    # var_per_component = data[0][1:].values - data[0][:-1].values
+    # # Because we've skipped the first entry.
+    # var_per_component = [float(data.loc[0])] + var_per_component.tolist()
+    total_var = [x for i, x in enumerate(data[1])
                  if i not in set(rejected_components)]
     return float(sum(total_var))
 
@@ -129,28 +137,36 @@ def icicle_plot(melodic_dir, outfile, *, fixfile=None):
     """
     data = retrieve_data(melodic_dir)
     ica_dimension = get_ica_dimension(melodic_dir)
-    total_dimension = data.shape[0]
+    #total_dimension = data.shape[0]
 
     fig, ax = plt.subplots()
     beautify_plot(ax)
+    plt.axis([0, 100, 0.5, 1])
 
     rect_properties = {'edgecolor': "white", 'linewidth': 0.15}
 
     # Rectangle bottom left position, and its size.
     xy = (0, 0.5)
-    width = float(data.loc[0])
+    width = float(data[1].loc[0])
     height = 0.5
 
+    #print(xy, width)
     ax.add_patch(Rectangle(xy, width, height, fc="C0", **rect_properties))
 
-    for component in range(1, total_dimension):
-        xy = (float(data.loc[component-1]), 0.5)
-        width = float(data.loc[component] - data.loc[component-1])
-        fc = "C0" if component < ica_dimension else "C1"
+    xpos = data[1].cumsum()
+    for component in range(1, ica_dimension):
+        xy = (float(xpos[component-1]), 0.5)
+        width = float(data[1].loc[component])
+        fc = "C0"
+        #print(xy, width)
         ax.add_patch(Rectangle(xy, width, height, fc=fc, **rect_properties))
+    xy = (get_variance_explained(data), 0.5)
+    width = 100 - get_variance_explained(data)
+    #print(xy, width)
+    ax.add_patch(Rectangle(xy, width, height, fc="C1", **rect_properties))
 
     if fixfile is None:
-        var = 100 * float(data.loc[ica_dimension])
+        var = get_variance_explained(data)
         plt.suptitle(f"Estimated ICA dimensionality retains {var:2.2f} % of variance")
         plt.savefig(outfile)
         return
@@ -159,14 +175,16 @@ def icicle_plot(melodic_dir, outfile, *, fixfile=None):
     fix_rejected = get_rejected_components_from_fix(fixfile)
     fix_colors = get_component_colors(fix_rejected, ica_dimension)
 
+    plt.axis([0, 100, 0, 1])
+
     xy = (0, 0)
-    width = float(data.loc[0])
+    width = float(data[1].loc[0])
     ax.add_patch(Rectangle(xy, width, height, fc=fix_colors[0],
                            **rect_properties))
 
     for component in range(1, ica_dimension):
-        xy = (float(data.loc[component-1]), 0)
-        width = float(data.loc[component] - data.loc[component-1])
+        xy = (float(data[1].loc[component-1]), 0)
+        width = float(data[1].loc[component])
         color = fix_colors[component]
         ax.add_patch(Rectangle(xy,
                                width,
