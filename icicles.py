@@ -9,8 +9,10 @@ import ast
 import glob
 import os
 
-import matplotlib.pyplot as plt
 import pandas as pd
+import matplotlib
+matplotlib.use("agg")
+import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
 
@@ -191,7 +193,7 @@ def icicle_plot(melodic_dir, outfile, *, fixfile=None):
                                height,
                                fc=color, **rect_properties))
 
-    var = 100 * get_variance_retained_after_fix(data, ica_dimension, fix_rejected)
+    var = get_variance_retained_after_fix(data, fix_rejected)
     plt.suptitle(f"FIX cleaned data retains {var:2.2f} % of variance")
     plt.savefig(outfile)
 
