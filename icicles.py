@@ -1,4 +1,4 @@
-# Time-stamp: <2017-06-19 15:45:08 dangom>
+# Time-stamp: <2017-06-19 16:20:24 dangom>
 """
 Generate an icicle tree plot from a melodic directory.
 The plot will explain how much variance was removed from cleaning the data,
@@ -78,6 +78,16 @@ def get_rejected_components_from_fix(fixfile):
     return rejected_components
 
 
+def get_variance_retained_after_fix(data, ica_dimension, rejected_components):
+    var_per_component = data[0][1:].values - data[0][:-1].values
+    # Because we've skipped the first entry.
+    var_per_component = [float(data.loc[0])] + var_per_component.tolist()
+    total_var = [x for i, x in enumerate(var_per_component[:ica_dimension])
+                 if i not in set(rejected_components)]
+    return float(sum(total_var))
+
+
+
 def get_component_colors(rejected_components, ica_dimension):
     """Return a list of the same size as ICA_DIMENSION, where
     each item is either coloured "C1" if rejected, of "C0" if accepted.
@@ -139,14 +149,14 @@ def icicle_plot(melodic_dir, outfile, *, fixfile=None):
         fc = "C0" if component < ica_dimension else "C1"
         ax.add_patch(Rectangle(xy, width, height, fc=fc, **rect_properties))
 
-
     if fixfile is None:
+        var = 100 * float(data.loc[ica_dimension])
+        plt.suptitle(f"Estimated ICA dimensionality retains {var:2.2f} % of variance")
         plt.savefig(outfile)
         return
 
     fixfile = get_fix_file(melodic_dir)
     fix_rejected = get_rejected_components_from_fix(fixfile)
-
     fix_colors = get_component_colors(fix_rejected, ica_dimension)
 
     xy = (0, 0)
@@ -163,7 +173,8 @@ def icicle_plot(melodic_dir, outfile, *, fixfile=None):
                                height,
                                fc=color, **rect_properties))
 
-    plt.suptitle("")
+    var = 100 * get_variance_retained_after_fix(data, ica_dimension, fix_rejected)
+    plt.suptitle(f"FIX cleaned data retains {var:2.2f} % of variance")
     plt.savefig(outfile)
 
 
