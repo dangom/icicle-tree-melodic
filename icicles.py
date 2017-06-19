@@ -1,3 +1,4 @@
+# Time-stamp: <2017-06-19 12:28:33 dangom>
 """
 Generate an icicle tree plot from a melodic directory.
 The plot will explain how much variance was removed from cleaning the data,
@@ -10,7 +11,6 @@ import os
 
 from matplotlib.patches import Rectangle
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 
 
@@ -42,6 +42,14 @@ def get_variance_explained(data, n_components):
 
 
 def get_fix_file(melodic_dir=None):
+    """Find the fix4melview file, if available, in the
+    Melodic output directory.
+
+    :param melodic_dir: Path to directory
+    :returns: Name of file
+    :rtype: String
+
+    """
     if melodic_dir is None:
         melodic_dir = os.getcwd()
     fixfile = glob.glob(os.path.join(melodic_dir, "fix4*.txt"))
@@ -49,10 +57,17 @@ def get_fix_file(melodic_dir=None):
 
 
 def get_rejected_components_from_fix(fixfile):
+    """The components are listed in the last line.
+    We loop until the end of the file and then safe
+    evaluate the list to retrieve its values.
+
+    :param fixfile: The file as ouput from Melview (or similar).
+    :returns: A list of rejected components
+    :rtype: List
+
+    """
     with open(fixfile, 'r') as f:
         for line in f:
-            # The components are listed in the last line.
-            # Therefore we loop until the end of the file.
             x = line
         # Ast.literal_eval safe evaluates the list.
         # Subtract one because the counting starts at 1.
@@ -61,7 +76,17 @@ def get_rejected_components_from_fix(fixfile):
 
 
 def get_component_colors(rejected_components, ica_dimension):
-    pass
+    """Return a list of the same size as ICA_DIMENSION, where
+    each item is either coloured "C1" if rejected, of "C0" if accepted.
+
+    :param rejected_components: List of rejected components
+    :param ica_dimension: Total ICA dimensionality
+    :returns: List of colors
+    :rtype: List
+
+    """
+    return ["C1" if item in set(rejected_components) else "C0"
+            for item in range(ica_dimension)]
 
 
 def beautify_plot(ax):
@@ -92,13 +117,13 @@ def icicle_plot(melodic_dir, outfile, *, fixfile=None):
     data = retrieve_data(melodic_dir)
     ica_dimension = get_ica_dimension(melodic_dir)
     total_dimension = data.shape[0]
-    var = get_variance_explained(data, ica_dimension)
 
     fig, ax = plt.subplots()
     beautify_plot(ax)
 
-    rect_properties = {'edgecolor': "white", 'linewidth': 0.2}
+    rect_properties = {'edgecolor': "white", 'linewidth': 0.15}
 
+    # Rectangle bottom left position, and its size.
     xy = (0, 0.5)
     width = float(data.loc[0])
     height = 0.5
@@ -112,31 +137,30 @@ def icicle_plot(melodic_dir, outfile, *, fixfile=None):
         ax.add_patch(Rectangle(xy, width, height, fc=fc, **rect_properties))
 
     if not fixfile:
-        #plt.suptitle("Estimated " + ica_dimension + ". Retained " + 100*var "% of variance.")
         plt.savefig(outfile)
         return
 
     fixfile = get_fix_file(melodic_dir)
-    test_fix = get_rejected_components_from_fix(fixfile)
+    fix_rejected = get_rejected_components_from_fix(fixfile)
 
-    test_fix = ["C1" if item in set(test_fix) else "C0" for item in range(ica_dimension)]
-    initcolor = "C1" if 0 in set(test_fix) else "C0"
-    variance = data.loc[0] if 0 in set(test_fix) else 0
-    ax.add_patch(Rectangle((0, 0), float(data.loc[0]), 0.5, fc=initcolor, edgecolor="white", linewidth=0.2))
+    fix_colors = get_component_colors(fix_rejected, ica_dimension)
+
+    xy = (0, 0)
+    width = float(data.loc[0])
+    ax.add_patch(Rectangle(xy, width, height, fc=fix_colors[0],
+                           **rect_properties))
+
     for component in range(1, ica_dimension):
-        color = test_fix[component]
-        size = float(data.loc[component] -data.loc[component-1])
-        if color == "C0":
-            variance += size
-        ax.add_patch(Rectangle((float(data.loc[component-1]), 0),
-                                       size,
-                                       0.5,
-                                       # alpha=1-float(component/total_dimension),
-                                       fc=color, edgecolor="white", linewidth=0.2))
+        xy = (float(data.loc[component-1]), 0)
+        width = float(data.loc[component] - data.loc[component-1])
+        color = fix_colors[component]
+        ax.add_patch(Rectangle(xy,
+                               width,
+                               height,
+                               fc=color, **rect_properties))
 
     plt.suptitle("")
     plt.savefig(outfile)
-
 
 
 if __name__ == "__main__":
@@ -144,13 +168,17 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Save an icicle plot to file")
-    parser.add_argument('input_directory', metavar='i', type=str, default='.', help='The input melodic directory')
-    parser.add_argument('output_file', metavar='o', type=str, help='The output filename')
-    parser.add_argument('--fix', type=str, help='The filename containing fix classification data', default=None)
+    parser.add_argument('input_directory', metavar='i', type=str, default='.',
+                        help='The input melodic directory')
+
+    parser.add_argument('output_file', metavar='o', type=str,
+                        help='The output filename')
+
+    parser.add_argument('--fix', type=str, default=None,
+                        help='The filename containing fix classification data')
 
     args = parser.parse_args()
 
     data = retrieve_data(args.input_directory)
     ica_dimension = get_ica_dimension(args.input_directory)
-    var = get_variance_explained(data, ica_dimension)
     icicle_plot(args.input_directory, args.output_file, fixfile=args.fix)
