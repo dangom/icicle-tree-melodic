@@ -1,4 +1,4 @@
-# Time-stamp: <2017-06-19 12:28:33 dangom>
+# Time-stamp: <2017-06-19 15:45:08 dangom>
 """
 Generate an icicle tree plot from a melodic directory.
 The plot will explain how much variance was removed from cleaning the data,
@@ -53,7 +53,10 @@ def get_fix_file(melodic_dir=None):
     if melodic_dir is None:
         melodic_dir = os.getcwd()
     fixfile = glob.glob(os.path.join(melodic_dir, "fix4*.txt"))
-    return fixfile[0]
+    try:
+        return fixfile[0]
+    except IndexError:
+        return None
 
 
 def get_rejected_components_from_fix(fixfile):
@@ -136,7 +139,8 @@ def icicle_plot(melodic_dir, outfile, *, fixfile=None):
         fc = "C0" if component < ica_dimension else "C1"
         ax.add_patch(Rectangle(xy, width, height, fc=fc, **rect_properties))
 
-    if not fixfile:
+
+    if fixfile is None:
         plt.savefig(outfile)
         return
 
