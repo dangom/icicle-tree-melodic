@@ -1,4 +1,4 @@
-# Time-stamp: <2017-06-20 00:14:50 danielpgomez>
+# Time-stamp: <2017-06-20 00:17:05 danielpgomez>
 """
 Generate an icicle tree plot from a melodic directory.
 The plot will explain how much variance was removed from cleaning the data,
@@ -185,7 +185,7 @@ def icicle_plot(melodic_dir, outfile, *, fixfile=None):
                            **rect_properties))
 
     for component in range(1, ica_dimension):
-        xy = (float(xpos[component-1]), 0.5)
+        xy = (float(xpos[component-1]), 0)
         width = float(data[1].loc[component])
         color = fix_colors[component]
         ax.add_patch(Rectangle(xy,
