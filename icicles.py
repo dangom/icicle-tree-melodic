@@ -1,4 +1,5 @@
-# Time-stamp: <2017-06-20 00:17:05 danielpgomez>
+#!/usr/bin/env python3
+# Time-stamp: <2017-07-07 15:50:53 danielpgomez>
 """
 Generate an icicle tree plot from a melodic directory.
 The plot will explain how much variance was removed from cleaning the data,
@@ -8,12 +9,16 @@ and or changing the number of components.
 import ast
 import glob
 import os
+from sys import platform
 
 import pandas as pd
-import matplotlib
-matplotlib.use("agg")
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
+
+if platform == "linux":
+    import matplotlib
+    matplotlib.use("agg")
+
+import matplotlib.pyplot as plt # isort:skip
+from matplotlib.patches import Rectangle #isort:skip
 
 
 def retrieve_data_deprecated(melodic_dir):
