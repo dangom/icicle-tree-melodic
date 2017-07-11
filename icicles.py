@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Time-stamp: <2017-07-11 17:14:53 dangom>
+# Time-stamp: <2017-07-11 18:06:58 dangom>
 """
 Generate an icicle tree plot from a melodic directory.
 The plot will explain how much variance was removed from cleaning the data,
@@ -17,7 +17,7 @@ import pandas as pd
 # To circumvent issues when sshing into a  machine. Some backends
 # will not be able to generate figures if no visual display is set.
 # Fortunately, the agg backend can do so without a problem.
-if "DISPLAY" not in os.environ:
+if platform == "linux":
     import matplotlib
     matplotlib.use("agg")
 
@@ -27,7 +27,7 @@ from matplotlib.patches import Rectangle # isort:skip
 
 class Icicles():
 
-    def __init__(self, icastruct):
+    def __init__(self, icastruct, cleaning):
         """Init only needs an ICA structure with the information
         required to generate the Icicle plot.
 
@@ -37,6 +37,7 @@ class Icicles():
 
         """
         self.icastruct = icastruct
+        self.cleaning = cleaning
 
     @classmethod
     def fromfsl(cls, inputdirectory, fixfile=None):
@@ -71,7 +72,7 @@ class Icicles():
 
         data = data.assign(Acceptance=[x not in rejected_components
                                        for x in range(data.shape[0])])
-        return cls(data)
+        return cls(data, "FIX")
 
     @classmethod
     def frommeica(cls, inputdirectory):
@@ -112,12 +113,114 @@ class Icicles():
         data = data.assign(ExplainedVariance=[x*(varexplainedica/100)
                                               for x in data["TotalVariance"]])
 
-        return cls(data)
+        return cls(data, "ME-ICA")
+
+    def icicle_plot(self, outfile):
+        """
+        Generate an icicle plot showing excluded and accepted components,
+        and their explained variance.
+        """
+        data = self.icastruct
+        ica_dimension = self.ncomponents
+
+        fig, ax = plt.subplots()
+        self.beautify_plot(ax)
+        plt.axis([0, 100, 0.5, 1])
+
+        rect_properties = {'edgecolor': "white", 'linewidth': 0.15}
+
+        # Rectangle bottom left position, and its size.
+        xy = (0, 0.5)
+        width = float(data["ExplainedVariance"].loc[0])
+        height = 0.5
+
+        #print(xy, width)
+        ax.add_patch(Rectangle(xy, width, height, fc="C0", **rect_properties))
+
+        xpos = data["ExplainedVariance"].cumsum()
+        for component in range(1, ica_dimension):
+            xy = (float(xpos[component-1]), 0.5)
+            width = float(data["ExplainedVariance"].loc[component])
+            fc = "C0"
+            #print(xy, width)
+            ax.add_patch(Rectangle(xy, width, height, fc=fc, **rect_properties))
+        xy = (self.explainedvariance, 0.5)
+        width = 100 - self.explainedvariance
+        #print(xy, width)
+        ax.add_patch(Rectangle(xy, width, height, fc="C1", **rect_properties))
+
+        # Quick check all components where accepted
+        if data[data["Acceptance"]].shape[0] == data.shape[0]:
+            var = self.explainedvariance
+            plt.suptitle(f"Estimated ICA dimensionality retains {var:2.2f} % of variance")
+            plt.savefig(outfile)
+            return
+
+        rejected_components = self.rejectedcomponents
+
+        def get_component_colors():
+            """Return a list of the same size as ICA_DIMENSION, where
+            each item is either coloured "C1" if rejected, of "C0" if accepted.
+
+            :param rejected_components: List of rejected components
+            :param ica_dimension: Total ICA dimensionality
+            :returns: List of colors
+            :rtype: List
+
+            """
+            return ["C1" if item in set(rejected_components) else "C0"
+                    for item in range(self.ncomponents)]
+
+        colors = get_component_colors()
+
+        plt.axis([0, 100, 0, 1])
+
+        xy = (0, 0)
+        width = float(data["ExplainedVariance"].loc[0])
+        ax.add_patch(Rectangle(xy, width, height, fc=colors[0],
+                               **rect_properties))
+
+        for component in range(1, ica_dimension):
+            xy = (float(xpos[component-1]), 0)
+            width = float(data["ExplainedVariance"].loc[component])
+            color = colors[component]
+            ax.add_patch(Rectangle(xy,
+                                   width,
+                                   height,
+                                   fc=color, **rect_properties))
+
+        var = self.retainedvariance
+        plt.suptitle(f"{self.cleaning} cleaned data retains {var:2.2f} % of variance")
+        plt.savefig(outfile)
+
+    def beautify_plot(self, ax):
+        """Despine and remove ticks and ticklabels from axes object.
+
+        :param ax: An Axes object
+        :returns: Nothing
+        :rtype: None
+
+        """
+
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+
+        ax.set_xticks([])
+        ax.set_xticklabels([])
+        ax.set_yticks([])
+        ax.set_yticklabels([])
+
+        return
+
 
 
     @property
     def ncomponents(self):
         return self.icastruct.shape[0]
+
+    @property
+    def rejectedcomponents(self):
+        return self.icastruct[self.icastruct["Acceptance"] == False].index.tolist()
 
     @property
     def explainedvariance(self):
@@ -127,40 +230,6 @@ class Icicles():
     def retainedvariance(self):
         return self.icastruct[self.icastruct['Acceptance']]['ExplainedVariance'].sum()
 
-
-def retrieve_data_deprecated(melodic_dir):
-    """Returns the cumulative sum of eigenvalues,
-    as found in the 'eigenvalues_percent' file within the Melodic folder.
-
-    :param melodic_dir: Path to melodic directory
-    :returns: a pandas DataFrame with 1 value per row
-    :rtype: pandas DataFrame
-
-    """
-    data = pd.read_csv(os.path.join(melodic_dir,
-                                    "filtered_func_data.ica",
-                                    "eigenvalues_percent"),
-                       delimiter="  ", header=None, engine="python")
-    return data.T
-
-
-def retrieve_data(melodic_dir):
-    data = pd.read_csv(os.path.join(melodic_dir,
-                                    "filtered_func_data.ica",
-                                    "melodic_ICstats"),
-                       delimiter="  ", header=None, engine="python")
-    return data
-
-
-def get_ica_dimension(melodic_dir):
-
-    return sum(1 for line in open(os.path.join(melodic_dir,
-                                               "filtered_func_data.ica",
-                                               "melodic_ICstats")))
-
-
-def get_variance_explained(data):
-    return sum(data[1])
 
 
 def get_fix_file(melodic_dir=None):
@@ -181,135 +250,6 @@ def get_fix_file(melodic_dir=None):
         return None
 
 
-def get_rejected_components_from_fix(fixfile):
-    """The components are listed in the last line.
-    We loop until the end of the file and then safe
-    evaluate the list to retrieve its values.
-
-    :param fixfile: The file as ouput from Melview (or similar).
-    :returns: A list of rejected components
-    :rtype: List
-
-    """
-    with open(fixfile, 'r') as f:
-        for line in f:
-            x = line
-        # Ast.literal_eval safe evaluates the list.
-        # Subtract one because the counting starts at 1.
-        rejected_components = [item - 1 for item in ast.literal_eval(x)]
-    return rejected_components
-
-
-def get_variance_retained_after_fix(data, rejected_components):
-    # var_per_component = data[0][1:].values - data[0][:-1].values
-    # # Because we've skipped the first entry.
-    # var_per_component = [float(data.loc[0])] + var_per_component.tolist()
-    total_var = [x for i, x in enumerate(data[1])
-                 if i not in set(rejected_components)]
-    return float(sum(total_var))
-
-
-
-def get_component_colors(rejected_components, ica_dimension):
-    """Return a list of the same size as ICA_DIMENSION, where
-    each item is either coloured "C1" if rejected, of "C0" if accepted.
-
-    :param rejected_components: List of rejected components
-    :param ica_dimension: Total ICA dimensionality
-    :returns: List of colors
-    :rtype: List
-
-    """
-    return ["C1" if item in set(rejected_components) else "C0"
-            for item in range(ica_dimension)]
-
-
-def beautify_plot(ax):
-    """Despine and remove ticks and ticklabels from axes object.
-
-    :param ax: An Axes object
-    :returns: Nothing
-    :rtype: None
-
-    """
-
-    for spine in ax.spines.values():
-        spine.set_visible(False)
-
-    ax.set_xticks([])
-    ax.set_xticklabels([])
-    ax.set_yticks([])
-    ax.set_yticklabels([])
-
-    return
-
-
-def icicle_plot(melodic_dir, outfile, *, fixfile=None):
-    """
-    Generate an icicle plot showing excluded and accepted components, and their
-    explained variance.
-    """
-    data = retrieve_data(melodic_dir)
-    ica_dimension = get_ica_dimension(melodic_dir)
-    #total_dimension = data.shape[0]
-
-    fig, ax = plt.subplots()
-    beautify_plot(ax)
-    plt.axis([0, 100, 0.5, 1])
-
-    rect_properties = {'edgecolor': "white", 'linewidth': 0.15}
-
-    # Rectangle bottom left position, and its size.
-    xy = (0, 0.5)
-    width = float(data[1].loc[0])
-    height = 0.5
-
-    #print(xy, width)
-    ax.add_patch(Rectangle(xy, width, height, fc="C0", **rect_properties))
-
-    xpos = data[1].cumsum()
-    for component in range(1, ica_dimension):
-        xy = (float(xpos[component-1]), 0.5)
-        width = float(data[1].loc[component])
-        fc = "C0"
-        #print(xy, width)
-        ax.add_patch(Rectangle(xy, width, height, fc=fc, **rect_properties))
-    xy = (get_variance_explained(data), 0.5)
-    width = 100 - get_variance_explained(data)
-    #print(xy, width)
-    ax.add_patch(Rectangle(xy, width, height, fc="C1", **rect_properties))
-
-    if fixfile is None:
-        var = get_variance_explained(data)
-        plt.suptitle(f"Estimated ICA dimensionality retains {var:2.2f} % of variance")
-        plt.savefig(outfile)
-        return
-
-    fixfile = get_fix_file(melodic_dir)
-    fix_rejected = get_rejected_components_from_fix(fixfile)
-    fix_colors = get_component_colors(fix_rejected, ica_dimension)
-
-    plt.axis([0, 100, 0, 1])
-
-    xy = (0, 0)
-    width = float(data[1].loc[0])
-    ax.add_patch(Rectangle(xy, width, height, fc=fix_colors[0],
-                           **rect_properties))
-
-    for component in range(1, ica_dimension):
-        xy = (float(xpos[component-1]), 0)
-        width = float(data[1].loc[component])
-        color = fix_colors[component]
-        ax.add_patch(Rectangle(xy,
-                               width,
-                               height,
-                               fc=color, **rect_properties))
-
-    var = get_variance_retained_after_fix(data, fix_rejected)
-    plt.suptitle(f"FIX cleaned data retains {var:2.2f} % of variance")
-    plt.savefig(outfile)
-
-
 if __name__ == "__main__":
 
     import argparse
@@ -322,10 +262,16 @@ if __name__ == "__main__":
                         help='The output filename')
 
     parser.add_argument('--fix', type=str, default=None,
-                        help='The filename containing fix classification data')
+                        help='If FIX, the txt containing fix classification results')
 
     args = parser.parse_args()
 
-    data = retrieve_data(args.input_directory)
-    ica_dimension = get_ica_dimension(args.input_directory)
-    icicle_plot(args.input_directory, args.output_file, fixfile=args.fix)
+    # This fragile heuristic makes it so that the user does not have to tell us
+    # which cleaning type he's refering to.
+    if glob.glob(args.inputdirectory + "comp_table"):
+        x = Icicles.frommeica(args.inputdirectory)
+        x.icicle_plot(args.output_file)
+
+    elif glob.glob(args.inputdirectory + "filtered_func_data"):
+        x = Icicles.fromfsl(args.inputdirectory, fixfile=args.fixfile)
+        x.icicle_plot(args.output_file)
