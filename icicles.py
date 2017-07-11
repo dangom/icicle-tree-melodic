@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Time-stamp: <2017-07-11 16:25:59 dangom>
+# Time-stamp: <2017-07-11 17:14:53 dangom>
 """
 Generate an icicle tree plot from a melodic directory.
 The plot will explain how much variance was removed from cleaning the data,
@@ -9,22 +9,33 @@ and or changing the number of components.
 import ast
 import glob
 import os
+import re
 from sys import platform
 
 import pandas as pd
 
-if platform == "linux":
+# To circumvent issues when sshing into a  machine. Some backends
+# will not be able to generate figures if no visual display is set.
+# Fortunately, the agg backend can do so without a problem.
+if "DISPLAY" not in os.environ:
     import matplotlib
     matplotlib.use("agg")
 
 import matplotlib.pyplot as plt # isort:skip
-from matplotlib.patches import Rectangle #isort:skip
+from matplotlib.patches import Rectangle # isort:skip
 
 
 class Icicles():
 
     def __init__(self, icastruct):
+        """Init only needs an ICA structure with the information
+        required to generate the Icicle plot.
 
+        :param icastruct: PD Dataframe with [TotalVar/VarExp/Accept]
+        :returns: None
+        :rtype: None
+
+        """
         self.icastruct = icastruct
 
     @classmethod
@@ -55,8 +66,8 @@ class Icicles():
                     x = line
                     # Ast.literal_eval safe evaluates a list.
                     # Subtract one because the counting starts at 1.
-                    rejected_components = [item - 1
-                                           for item in ast.literal_eval(x)]
+                rejected_components = [item - 1
+                                       for item in ast.literal_eval(x)]
 
         data = data.assign(Acceptance=[x not in rejected_components
                                        for x in range(data.shape[0])])
@@ -74,7 +85,35 @@ class Icicles():
         :rtype: pandas DataFrame
 
         """
-        pass
+        cols = ["Kappa", "Rho", "TotalVariance"]
+        compfile = os.path.join(inputdirectory, "comp_table.txt")
+        data = pd.read_csv(compfile, delimiter="\t", comment="#",
+                           header=None, usecols=[1, 2, 4], names=cols)
+
+        def search_for(regexp):
+            with open(compfile, 'r') as f:
+                for line in f:
+                    res = re.search(regexp, line)
+                    if res is not None:
+                        break
+                return res.group(1)
+
+
+        # Search for variance explained for ICA and for rejected components
+        varexp_regexp = re.compile("\(VEx\): (\d*[.,]?\d*)")
+        rejected_regexp = re.compile("REJ ([\d,]+)")
+
+        varexplainedica = float(search_for(varexp_regexp))
+        rejected_components = ast.literal_eval("[" + search_for(rejected_regexp) + "]")
+
+        data = data.assign(Acceptance=[x not in rejected_components
+                                       for x in range(data.shape[0])])
+
+        data = data.assign(ExplainedVariance=[x*(varexplainedica/100)
+                                              for x in data["TotalVariance"]])
+
+        return cls(data)
+
 
     @property
     def ncomponents(self):
