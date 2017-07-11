@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Time-stamp: <2017-07-11 18:06:58 dangom>
+# Time-stamp: <2017-07-11 18:09:22 dangom>
 """
 Generate an icicle tree plot from a melodic directory.
 The plot will explain how much variance was removed from cleaning the data,
@@ -268,10 +268,10 @@ if __name__ == "__main__":
 
     # This fragile heuristic makes it so that the user does not have to tell us
     # which cleaning type he's refering to.
-    if glob.glob(args.inputdirectory + "comp_table"):
-        x = Icicles.frommeica(args.inputdirectory)
+    if glob.glob(args.input_directory + "comp_table"):
+        x = Icicles.frommeica(args.input_directory)
         x.icicle_plot(args.output_file)
 
-    elif glob.glob(args.inputdirectory + "filtered_func_data"):
-        x = Icicles.fromfsl(args.inputdirectory, fixfile=args.fixfile)
+    elif glob.glob(args.input_directory + "filtered_func_data"):
+        x = Icicles.fromfsl(args.input_directory, fixfile=args.fixfile)
         x.icicle_plot(args.output_file)
