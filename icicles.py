@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Time-stamp: <2017-07-11 18:09:22 dangom>
+# Time-stamp: <2017-07-11 18:24:13 dangom>
 """
 Generate an icicle tree plot from a melodic directory.
 The plot will explain how much variance was removed from cleaning the data,
@@ -256,7 +256,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Save an icicle plot to file")
     parser.add_argument('input_directory', metavar='i', type=str, default='.',
-                        help='The input melodic directory')
+                        help='The input ICA directory')
 
     parser.add_argument('output_file', metavar='o', type=str,
                         help='The output filename')

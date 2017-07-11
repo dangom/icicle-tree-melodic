@@ -1,0 +1,39 @@
+#+TITLE: ICA Icicle Plots
+#+AUTHOR: Daniel Gomez
+#+DATE: 11.07.2017
+
+A tool to generate icicle plots displaying:
+1. The amount of variance in each ICA component;
+2.  The amount of variance explained by the dimensionality of the ICA decomposition, in comparison to the full data;
+3. Components accepted and rejected by either FIX or ME-ICA cleaning (the only currently supported methods).
+
+Here is an example image:
+[[./icicle_plot.png]]
+
+** Usage
+
+ICA Icicle Plots currently supports FIX and ME-ICA. It will automatically detect what cleaning method was used, if any.
+However, if you did use FIX, you'll have to specify the FIX results.txt file yourself. This file usually has a name similar to "fix4melview_blabla.txt".
+
+Directly from the help menu:
+#+begin_quote
+icicles.py [-h] [--fix FIX] i o
+
+Save an icicle plot to file
+
+positional arguments:
+  i           The input ICA directory
+  o           The output filename
+
+optional arguments:
+  -h, --help  show this help message and exit
+  --fix FIX   If FIX, the txt containing fix classification results
+#+end_quote
+
+** Installation
+
+Clone the repository.
+
+** Dependencies
+
+Python3 with pandas and matplotlib.
