@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Time-stamp: <2017-07-07 15:50:53 danielpgomez>
+# Time-stamp: <2017-07-11 16:25:59 dangom>
 """
 Generate an icicle tree plot from a melodic directory.
 The plot will explain how much variance was removed from cleaning the data,
@@ -19,6 +19,74 @@ if platform == "linux":
 
 import matplotlib.pyplot as plt # isort:skip
 from matplotlib.patches import Rectangle #isort:skip
+
+
+class Icicles():
+
+    def __init__(self, icastruct):
+
+        self.icastruct = icastruct
+
+    @classmethod
+    def fromfsl(cls, inputdirectory, fixfile=None):
+        """Retrieves the data from FSL containing the following information:
+        1. The component list
+        2. Whether the component was accepted or rejected.
+        3. The variance of the component within the ICA explained var.
+
+        :param inputdirectory: Input Directory.
+        :returns: DF with (at least) columns: [TotalVariance/VarianceExplained/Acceptance]
+        :rtype: pandas DataFrame
+
+        """
+        cols = ["TotalVariance", "ExplainedVariance"]
+        data = pd.read_csv(os.path.join(inputdirectory,
+                                        "filtered_func_data.ica",
+                                        "melodic_ICstats"),
+                           delimiter="  ", header=None,
+                           usecols=[0, 1], names=cols,
+                           engine="python")
+
+        if fixfile is None:  # In which case all components are accepted.
+            rejected_components = []
+        else:
+            with open(fixfile, 'r') as f:
+                for line in f:
+                    x = line
+                    # Ast.literal_eval safe evaluates a list.
+                    # Subtract one because the counting starts at 1.
+                    rejected_components = [item - 1
+                                           for item in ast.literal_eval(x)]
+
+        data = data.assign(Acceptance=[x not in rejected_components
+                                       for x in range(data.shape[0])])
+        return cls(data)
+
+    @classmethod
+    def frommeica(cls, inputdirectory):
+        """Retrieves the data from MEICA containing the following information:
+        1. The component list
+        2. Whether the component was accepted or rejected.
+        3. The variance of the component within the ICA explained var.
+
+        :param inputdirectory: Input Directory.
+        :returns: DF with (at least) columns: [TotalVariance/VarianceExplained/Acceptance]
+        :rtype: pandas DataFrame
+
+        """
+        pass
+
+    @property
+    def ncomponents(self):
+        return self.icastruct.shape[0]
+
+    @property
+    def explainedvariance(self):
+        return self.icastruct['ExplainedVariance'].sum()
+
+    @property
+    def retainedvariance(self):
+        return self.icastruct[self.icastruct['Acceptance']]['ExplainedVariance'].sum()
 
 
 def retrieve_data_deprecated(melodic_dir):
