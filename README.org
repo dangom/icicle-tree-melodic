@@ -8,7 +8,11 @@ A tool to generate icicle plots displaying:
 3. Components accepted and rejected by either FIX or ME-ICA cleaning (the only currently supported methods).
 
 Here is an example image:
+
 [[./icicle_plot.png]]
+
+The upper row shows the variance not explained (in orange) by the space spanned by the ICA components, but present in the original data nonetheless.
+The lower row shows components that are accepted (in blue) by the cleaning method, and rejected (in orange). Each rectangle represents one component, and its area is equivalent to the amount of variance it explains.
 
 ** Usage
 
