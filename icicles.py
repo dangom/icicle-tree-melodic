@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Time-stamp: <2017-07-11 18:24:13 dangom>
+# Time-stamp: <2017-07-11 18:30:14 dangom>
 """
 Generate an icicle tree plot from a melodic directory.
 The plot will explain how much variance was removed from cleaning the data,
@@ -99,7 +99,6 @@ class Icicles():
                         break
                 return res.group(1)
 
-
         # Search for variance explained for ICA and for rejected components
         varexp_regexp = re.compile("\(VEx\): (\d*[.,]?\d*)")
         rejected_regexp = re.compile("REJ ([\d,]+)")
@@ -134,7 +133,6 @@ class Icicles():
         width = float(data["ExplainedVariance"].loc[0])
         height = 0.5
 
-        #print(xy, width)
         ax.add_patch(Rectangle(xy, width, height, fc="C0", **rect_properties))
 
         xpos = data["ExplainedVariance"].cumsum()
@@ -142,11 +140,9 @@ class Icicles():
             xy = (float(xpos[component-1]), 0.5)
             width = float(data["ExplainedVariance"].loc[component])
             fc = "C0"
-            #print(xy, width)
             ax.add_patch(Rectangle(xy, width, height, fc=fc, **rect_properties))
         xy = (self.explainedvariance, 0.5)
         width = 100 - self.explainedvariance
-        #print(xy, width)
         ax.add_patch(Rectangle(xy, width, height, fc="C1", **rect_properties))
 
         # Quick check all components where accepted
@@ -212,8 +208,6 @@ class Icicles():
 
         return
 
-
-
     @property
     def ncomponents(self):
         return self.icastruct.shape[0]
@@ -229,7 +223,6 @@ class Icicles():
     @property
     def retainedvariance(self):
         return self.icastruct[self.icastruct['Acceptance']]['ExplainedVariance'].sum()
-
 
 
 def get_fix_file(melodic_dir=None):
