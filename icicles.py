@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Time-stamp: <2017-07-11 18:30:14 dangom>
+# Time-stamp: <2017-07-12 15:42:55 dangom>
 """
 Generate an icicle tree plot from a melodic directory.
 The plot will explain how much variance was removed from cleaning the data,
@@ -225,22 +225,22 @@ class Icicles():
         return self.icastruct[self.icastruct['Acceptance']]['ExplainedVariance'].sum()
 
 
-def get_fix_file(melodic_dir=None):
-    """Find the fix4melview file, if available, in the
-    Melodic output directory.
+# def get_fix_file(melodic_dir=None):
+#     """Find the fix4melview file, if available, in the
+#     Melodic output directory.
 
-    :param melodic_dir: Path to directory
-    :returns: Name of file
-    :rtype: String
+#     :param melodic_dir: Path to directory
+#     :returns: Name of file
+#     :rtype: String
 
-    """
-    if melodic_dir is None:
-        melodic_dir = os.getcwd()
-    fixfile = glob.glob(os.path.join(melodic_dir, "fix4*.txt"))
-    try:
-        return fixfile[0]
-    except IndexError:
-        return None
+#     """
+#     if melodic_dir is None:
+#         melodic_dir = os.getcwd()
+#     fixfile = glob.glob(os.path.join(melodic_dir, "fix4*.txt"))
+#     try:
+#         return fixfile[0]
+#     except IndexError:
+#         return None
 
 
 if __name__ == "__main__":
@@ -257,14 +257,17 @@ if __name__ == "__main__":
     parser.add_argument('--fix', type=str, default=None,
                         help='If FIX, the txt containing fix classification results')
 
-    args = parser.parse_args()
+    res = vars(parser.parse_args())
 
     # This fragile heuristic makes it so that the user does not have to tell us
     # which cleaning type he's refering to.
-    if glob.glob(args.input_directory + "comp_table"):
-        x = Icicles.frommeica(args.input_directory)
-        x.icicle_plot(args.output_file)
+    if glob.glob(os.path.join(res["input_directory"], "comp_table*")):
+        x = Icicles.frommeica(res["input_directory"])
+        x.icicle_plot(res["output_file"])
 
-    elif glob.glob(args.input_directory + "filtered_func_data"):
-        x = Icicles.fromfsl(args.input_directory, fixfile=args.fixfile)
-        x.icicle_plot(args.output_file)
+    elif glob.glob(os.path.join(res["input_directory"], "filtered_func_data*")):
+        x = Icicles.fromfsl(res["input_directory"], fixfile=res["fix"])
+        x.icicle_plot(res["output_file"])
+
+    else:
+        print("err")
