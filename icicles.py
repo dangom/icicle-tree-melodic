@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Time-stamp: <2017-07-12 15:42:55 dangom>
+# Time-stamp: <2017-07-12 15:47:31 dangom>
 """
 Generate an icicle tree plot from a melodic directory.
 The plot will explain how much variance was removed from cleaning the data,
@@ -122,7 +122,7 @@ class Icicles():
         data = self.icastruct
         ica_dimension = self.ncomponents
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(10,3))
         self.beautify_plot(ax)
         plt.axis([0, 100, 0.5, 1])
 
